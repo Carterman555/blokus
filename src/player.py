@@ -180,7 +180,11 @@ class Player:
 
     def click(self):
         for piece in self.pieces:
-            piece.click()
+            placed = piece.click()
+            if placed:
+                return True
+            
+        return False
 
         
 

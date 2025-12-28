@@ -62,18 +62,23 @@ class Piece:
             self.drag_offset_y = (self.top - pygame.mouse.get_pos()[1]) * scale_factor
 
         elif self.state == PieceState.DRAGGING:
-            place_pos = self.valid_place_pos()
-            if place_pos:
+
+            snap_left, snap_right = self.snap_pos()
+            valid_pos = Board.instance.try_place_piece(self, snap_left, snap_right)
+            if valid_pos:
                 self.state = PieceState.ON_BOARD
 
-                self.left = place_pos[0]
-                self.top = place_pos[1]
+                self.left = snap_left
+                self.top = snap_right
 
-    def valid_place_pos(self) -> tuple:
+                return True
+        
+        return False
+
+    def snap_pos(self) -> tuple:
 
         snap_left = Board.instance.left - round((Board.instance.left - self.left)/SQUARE_SIZE) * SQUARE_SIZE
         snap_top = Board.instance.top - round((Board.instance.top - self.top)/SQUARE_SIZE) * SQUARE_SIZE
-
         return (snap_left, snap_top)
 
 
@@ -91,6 +96,9 @@ class Piece:
             if len(row) > max_len:
                 max_len = len(row)
         return max_len
+    
+    def get_height(self):
+        return len(self.shape)
     
     def is_mouse_over(self):
         for rect in self.rects:
