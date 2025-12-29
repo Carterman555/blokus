@@ -2,7 +2,7 @@ import pygame
 
 from constants import *
 from board import Board
-from piece import Piece
+from piece import Piece, PieceAction
 from player import Player, PlayerPosition
 
 class Game:
@@ -30,18 +30,28 @@ class Game:
         running = True
         while running:
 
+            mousebuttondown = False
+            keydown = False
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    left_click = pygame.mouse.get_pressed()[0]
-                    if left_click:
-                        placed = players[self.cur_player_index].click()
+                    mousebuttondown = True
 
-                        if placed:
-                            self.next_turn()
+                if event.type == pygame.KEYDOWN:
+                    keydown = True
 
+            action = players[self.cur_player_index].handle_inputs(
+                mousebuttondown,
+                pygame.mouse.get_pressed(),
+                keydown,
+                pygame.key.get_pressed()
+            )
+
+            if action == PieceAction.PLACE:
+                self.next_turn()
 
             board.update()
 

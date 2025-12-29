@@ -9,17 +9,26 @@ class PieceState(Enum):
     DRAGGING = 1
     ON_BOARD = 2
 
+class PieceAction(Enum):
+    START_DRAGGING = 0
+    PLACE = 1
+
 class Piece:
     def __init__(self, shape: list[list[int]], topleft: tuple, color: str):
         self.shape: list[list[int]] = shape
         self.top: int = topleft[1]
         self.left: int = topleft[0]
 
+        self.off_board_top = self.top
+        self.off_board_left = self.left
+
         self.rects: list[pygame.Rect] = []
 
         self.color: str = color
 
         self.state = PieceState.OFF_BOARD
+
+        self.size = sum([sum(row) for row in shape])
 
     def update(self):
 
@@ -52,28 +61,87 @@ class Piece:
         for rect in self.rects:
             pygame.draw.rect(screen, self.color, rect)
         
-    def click(self):
-        if self.state == PieceState.OFF_BOARD and self.is_mouse_over():
-            self.state = PieceState.DRAGGING
+    def handle_inputs(self, mousebuttondown, mouse_inputs, keydown, keys):
 
-            scale_factor = SQUARE_SIZE / SMALL_SQUARE_SIZE
+        action = None
 
-            self.drag_offset_x = (self.left - pygame.mouse.get_pos()[0]) * scale_factor
-            self.drag_offset_y = (self.top - pygame.mouse.get_pos()[1]) * scale_factor
+        left_click = mousebuttondown and mouse_inputs[0]
+        right_click = mousebuttondown and mouse_inputs[2]
+
+        if self.state == PieceState.OFF_BOARD:
+            if left_click and self.is_mouse_over():
+                self.start_dragging()
+                action = PieceAction.START_DRAGGING
 
         elif self.state == PieceState.DRAGGING:
 
-            snap_left, snap_right = self.snap_pos()
-            valid_pos = Board.instance.try_place_piece(self, snap_left, snap_right)
-            if valid_pos:
-                self.state = PieceState.ON_BOARD
+            if left_click:
+                placed = self.try_place()
+                if placed:
+                    action = PieceAction.PLACE
 
-                self.left = snap_left
-                self.top = snap_right
+            if right_click:
+                self.stop_dragging()
 
-                return True
+            pressed_t = keydown and keys[pygame.K_t]
+            pressed_r = keydown and keys[pygame.K_r]
+
+            if pressed_t:
+                self.rotate(clockwise=True)
+            elif pressed_r:
+                self.rotate(clockwise=False)
+
+        return action
+
+
+    def start_dragging(self):
+        self.state = PieceState.DRAGGING
+
+        scale_factor = SQUARE_SIZE / SMALL_SQUARE_SIZE
+
+        self.drag_offset_x = (self.left - pygame.mouse.get_pos()[0]) * scale_factor
+        self.drag_offset_y = (self.top - pygame.mouse.get_pos()[1]) * scale_factor
+
+    def stop_dragging(self):
+        self.state = PieceState.OFF_BOARD
+
+        self.top = self.off_board_top
+        self.left = self.off_board_left
+
+    def try_place(self):
+        snap_left, snap_right = self.snap_pos()
+        valid_pos = Board.instance.try_place_piece(self, snap_left, snap_right)
+        if valid_pos:
+            self.state = PieceState.ON_BOARD
+
+            self.left = snap_left
+            self.top = snap_right
+
+        return valid_pos
+    
+    def rotate(self, clockwise=True):
         
-        return False
+        new_shape = [[0] * self.get_height() for x in range(self.get_width())]
+
+        for y, row in enumerate(self.shape):
+            for x, num in enumerate(row):
+                if clockwise:
+                    new_shape[x][(self.get_height()-1)-y] = num
+                else:
+                    new_shape[(self.get_width()-1)-x][y] = num
+
+
+        # update offset to pivot around mouse pos
+        if clockwise:
+            new_drag_offset_x = -(self.get_height() * SQUARE_SIZE) - self.drag_offset_y
+            self.drag_offset_y = self.drag_offset_x
+            self.drag_offset_x = new_drag_offset_x
+        else:
+            new_drag_offset_x = self.drag_offset_y
+            self.drag_offset_y = -(self.get_width() * SQUARE_SIZE) - self.drag_offset_x
+            self.drag_offset_x = new_drag_offset_x
+
+        self.shape = new_shape
 
     def snap_pos(self) -> tuple:
 
@@ -91,11 +159,7 @@ class Piece:
         return count
     
     def get_width(self):
-        max_len = 0
-        for row in self.shape:
-            if len(row) > max_len:
-                max_len = len(row)
-        return max_len
+        return len(self.shape[0])
     
     def get_height(self):
         return len(self.shape)
