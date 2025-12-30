@@ -150,6 +150,8 @@ class Player:
         self.score = 0
         self.font = pygame.font.Font(None, 48)
 
+        self.can_place = True
+
     def get_pieces_offset(self, grid_positions, padding, x_spacing, y_spacing):
 
         max_grid_x = max([x for x, y in grid_positions])

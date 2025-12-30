@@ -2,6 +2,10 @@ import pygame
 from constants import *
 from enum import Enum
 
+from player import Player
+from piece import PieceState
+from helpers import rotate_shape, reflect_shape
+
 class BoardSquareState(Enum):
     EMPTY = 0
     BLUE = 1
@@ -26,7 +30,12 @@ class Board:
 
         self.squares = [[BoardSquareState.EMPTY] * self.size_in_squares for x in range(self.size_in_squares)]
 
-        
+        self.color_to_state = {
+            'blue': BoardSquareState.BLUE,
+            'red': BoardSquareState.RED,
+            'green': BoardSquareState.GREEN,
+            'yellow': BoardSquareState.YELLOW
+        }
 
 
     def update(self):
@@ -51,18 +60,104 @@ class Board:
             pygame.draw.line(screen, line_color, (self.left, y), (self.right-1, y))
 
 
-    def try_place_piece(self, piece, snap_left, snap_top):
+    # try every orientation of every piece for the player
+    def can_player_place(self, player: Player):
 
-        if not self.piece_on_board(piece, snap_left, snap_top):
+        count = 0
+
+        required_positions = []
+        for y, row in enumerate(self.valid_squares):
+            for x, square_state in enumerate(row):
+                if square_state == ValidSquareState.REQUIRED:
+                    required_positions.append((x, y))
+
+        for piece in player.pieces:
+            if piece.state != PieceState.OFF_BOARD:
+                continue
+
+            for pos in required_positions:
+                shape = piece.shape.copy()
+                for _ in range(2):
+                    for _ in range(4):
+                        for y, row in enumerate(shape):
+                            for x, num in enumerate(row):
+                                if num == 0:
+                                    continue
+
+                                count += 1
+
+                                grid_left = pos[0] - x
+                                grid_top = pos[1] - y
+
+                                if not self.grid_pos_on_board(grid_left, grid_top):
+                                    continue
+
+                                left, top = self.grid_to_screen_pos(grid_left, grid_top)
+                                if self.can_place_piece(shape, left, top):
+                                    print(count)
+                                    return True
+                                
+                        shape = rotate_shape(shape)
+                    shape = reflect_shape(shape)
+
+        print(count)
+        return False
+
+
+    def place_piece(self, piece, snap_left, snap_top):
+
+        left_grid_x, top_grid_y = self.screen_to_grid_pos(snap_left, snap_top)
+        
+        for y, row in enumerate(piece.shape):
+            for x, num in enumerate(row):
+                if num == 0:
+                    continue
+
+                grid_x = left_grid_x + x
+                grid_y = top_grid_y + y
+
+                piece_state = self.color_to_state[piece.color]
+                self.squares[grid_y][grid_x] = piece_state
+
+        return True
+    
+    def can_place_piece(self, shape, snap_left, snap_top):
+
+        if not self.piece_on_board(shape, snap_left, snap_top):
             return False
         
-        color_to_state = {
-            'blue': BoardSquareState.BLUE,
-            'red': BoardSquareState.RED,
-            'green': BoardSquareState.GREEN,
-            'yellow': BoardSquareState.YELLOW
-        }
+        left_grid_x, top_grid_y = self.screen_to_grid_pos(snap_left, snap_top)
 
+        # need seperate loops for checking valid pos and setting states because otherwise,
+        # it would partially set states before returning false
+        in_required_pos = False
+        for y, row in enumerate(shape):
+            for x, num in enumerate(row):
+                if num == 0:
+                    continue
+                
+                grid_x = left_grid_x + x
+                grid_y = top_grid_y + y
+
+                if self.valid_squares[grid_y][grid_x] == ValidSquareState.INVALID:
+                    return False
+                
+                if self.valid_squares[grid_y][grid_x] == ValidSquareState.REQUIRED:
+                    in_required_pos = True
+
+        if not in_required_pos:
+            return False
+        
+        return True
+
+
+    def update_valid_squares(self, color):
+
+        def try_set_state(x, y, state):
+            valid = self.grid_pos_on_board(x, y) and self.valid_squares[y][x] != ValidSquareState.INVALID
+            if valid:
+                self.valid_squares[y][x] = state
+        
         starting_corners = {
             BoardSquareState.BLUE: (0, 0),
             BoardSquareState.RED: (19, 0),
@@ -70,78 +165,41 @@ class Board:
             BoardSquareState.YELLOW: (19, 19)
         }
 
-        piece_state = color_to_state[piece.color]
+        piece_state = self.color_to_state[color]
         starting_corner = starting_corners[piece_state]
 
-        left_grid_x, top_grid_y = self.screen_to_grid_pos(snap_left, snap_top)
-
-        valid_squares = [[ValidSquareState.NEUTRAL] * self.size_in_squares for x in range(self.size_in_squares)]
-        valid_squares[starting_corner[1]][starting_corner[0]] = ValidSquareState.REQUIRED
+        self.valid_squares = [[ValidSquareState.NEUTRAL] * self.size_in_squares for x in range(self.size_in_squares)]
+        self.valid_squares[starting_corner[1]][starting_corner[0]] = ValidSquareState.REQUIRED
 
         for y in range(self.size_in_squares):
             for x in range(self.size_in_squares):
 
                 # can't place overlapping with another piece
                 if self.squares[y][x] != BoardSquareState.EMPTY:
-                    valid_squares[y][x] = ValidSquareState.INVALID
+                    self.valid_squares[y][x] = ValidSquareState.INVALID
 
                 if self.squares[y][x] == piece_state:
 
                     # can't place next to your own piece
-                    self.try_set_state(valid_squares, x-1, y, ValidSquareState.INVALID)
-                    self.try_set_state(valid_squares, x+1, y, ValidSquareState.INVALID)
-                    self.try_set_state(valid_squares, x, y-1, ValidSquareState.INVALID)
-                    self.try_set_state(valid_squares, x, y+1, ValidSquareState.INVALID)
+                    try_set_state(x-1, y, ValidSquareState.INVALID)
+                    try_set_state(x+1, y, ValidSquareState.INVALID)
+                    try_set_state(x, y-1, ValidSquareState.INVALID)
+                    try_set_state(x, y+1, ValidSquareState.INVALID)
 
                     # have to place on corner of one of your pieces
-                    self.try_set_state(valid_squares, x-1, y-1, ValidSquareState.REQUIRED)
-                    self.try_set_state(valid_squares, x+1, y-1, ValidSquareState.REQUIRED)
-                    self.try_set_state(valid_squares, x-1, y+1, ValidSquareState.REQUIRED)
-                    self.try_set_state(valid_squares, x+1, y+1, ValidSquareState.REQUIRED)
+                    try_set_state(x-1, y-1, ValidSquareState.REQUIRED)
+                    try_set_state(x+1, y-1, ValidSquareState.REQUIRED)
+                    try_set_state(x-1, y+1, ValidSquareState.REQUIRED)
+                    try_set_state(x+1, y+1, ValidSquareState.REQUIRED)
 
-
-        # need seperate loops for checking valid pos and setting states because otherwise,
-        # it would partially set states before returning false
-        in_required_pos = False
-        for y, row in enumerate(piece.shape):
-            for x, num in enumerate(row):
-                if num == 0:
-                    continue
-                
-                grid_x = left_grid_x + x
-                grid_y = top_grid_y + y
-
-                if valid_squares[grid_y][grid_x] == ValidSquareState.INVALID:
-                    return False
-                
-                if valid_squares[grid_y][grid_x] == ValidSquareState.REQUIRED:
-                    in_required_pos = True
-
-        if not in_required_pos:
-            return False
-        
-        for y, row in enumerate(piece.shape):
-            for x, num in enumerate(row):
-                if num == 0:
-                    continue
-
-                grid_x = left_grid_x + x
-                grid_y = top_grid_y + y
-
-                self.squares[grid_y][grid_x] = piece_state
-
-        return True
-    
-    def try_set_state(self, valid_squares, x, y, state):
-        valid = self.grid_pos_on_board(x, y) and valid_squares[y][x] != ValidSquareState.INVALID
-        if valid:
-            valid_squares[y][x] = state
-
-    def piece_on_board(self, piece, snap_left, snap_top):
+    def piece_on_board(self, shape, snap_left, snap_top):
 
         # check position is on board
-        snap_right = snap_left + (piece.get_width() * SQUARE_SIZE)
-        snap_bot = snap_top + (piece.get_height() * SQUARE_SIZE)
+        width = len(shape[0])
+        height = len(shape)
+
+        snap_right = snap_left + (width * SQUARE_SIZE)
+        snap_bot = snap_top + (height * SQUARE_SIZE)
 
         if snap_left < Board.instance.left or \
             snap_right > Board.instance.right \
@@ -162,9 +220,18 @@ class Board:
 
         return grid_x, grid_y
     
+    def grid_to_screen_pos(self, grid_x, grid_y):
+        if not self.grid_pos_on_board(grid_x, grid_y):
+            raise Exception('Grid pos not on board')
+        
+        screen_x = (grid_x * SQUARE_SIZE) + self.left
+        screen_y = (grid_y * SQUARE_SIZE) + self.top
+
+        return screen_x, screen_y
+    
     def grid_pos_on_board(self, grid_x, grid_y):
         return grid_x < self.size_in_squares and grid_x >= 0 \
-            and grid_y < self.size_in_squares and grid_y >= 0
+            and grid_y < self.size_in_squares and grid_y >= 0        
 
     def print_state(self):
 

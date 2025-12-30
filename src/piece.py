@@ -2,7 +2,8 @@ import pygame
 from enum import Enum
 
 from constants import SMALL_SQUARE_SIZE, SQUARE_SIZE
-from board import Board
+import board
+from helpers import rotate_shape, reflect_shape
 
 class PieceState(Enum):
     OFF_BOARD = 0
@@ -83,13 +84,17 @@ class Piece:
             if right_click:
                 self.stop_dragging()
 
-            pressed_t = keydown and keys[pygame.K_t]
-            pressed_r = keydown and keys[pygame.K_r]
+            pressed_a = keydown and keys[pygame.K_a]
+            pressed_d = keydown and keys[pygame.K_d]
+            pressed_s = keydown and keys[pygame.K_s]
 
-            if pressed_t:
-                self.rotate(clockwise=True)
-            elif pressed_r:
+            if pressed_a:
                 self.rotate(clockwise=False)
+            elif pressed_d:
+                self.rotate(clockwise=True)
+            elif pressed_s:
+                self.reflect()
+
 
         return action
 
@@ -110,43 +115,38 @@ class Piece:
 
     def try_place(self):
         snap_left, snap_right = self.snap_pos()
-        valid_pos = Board.instance.try_place_piece(self, snap_left, snap_right)
-        if valid_pos:
+        can_place = board.Board.instance.can_place_piece(self.shape, snap_left, snap_right)
+        if can_place:
+            board.Board.instance.place_piece(self, snap_left, snap_right)
+
             self.state = PieceState.ON_BOARD
 
             self.left = snap_left
             self.top = snap_right
 
-        return valid_pos
+        return can_place
     
     def rotate(self, clockwise=True):
-        
-        new_shape = [[0] * self.get_height() for x in range(self.get_width())]
 
-        for y, row in enumerate(self.shape):
-            for x, num in enumerate(row):
-                if clockwise:
-                    new_shape[x][(self.get_height()-1)-y] = num
-                else:
-                    new_shape[(self.get_width()-1)-x][y] = num
+        self.shape = rotate_shape(self.shape, clockwise)
 
-
-        # update offset to pivot around mouse pos
         if clockwise:
-            new_drag_offset_x = -(self.get_height() * SQUARE_SIZE) - self.drag_offset_y
+            new_drag_offset_x = -(self.get_width() * SQUARE_SIZE) - self.drag_offset_y
             self.drag_offset_y = self.drag_offset_x
             self.drag_offset_x = new_drag_offset_x
         else:
             new_drag_offset_x = self.drag_offset_y
-            self.drag_offset_y = -(self.get_width() * SQUARE_SIZE) - self.drag_offset_x
+            self.drag_offset_y = -(self.get_height() * SQUARE_SIZE) - self.drag_offset_x
             self.drag_offset_x = new_drag_offset_x
 
-        self.shape = new_shape
+    def reflect(self):
+        self.shape = reflect_shape(self.shape)
+        self.drag_offset_y = -(self.get_height() * SQUARE_SIZE) - self.drag_offset_y
 
     def snap_pos(self) -> tuple:
 
-        snap_left = Board.instance.left - round((Board.instance.left - self.left)/SQUARE_SIZE) * SQUARE_SIZE
-        snap_top = Board.instance.top - round((Board.instance.top - self.top)/SQUARE_SIZE) * SQUARE_SIZE
+        snap_left = board.Board.instance.left - round((board.Board.instance.left - self.left)/SQUARE_SIZE) * SQUARE_SIZE
+        snap_top = board.Board.instance.top - round((board.Board.instance.top - self.top)/SQUARE_SIZE) * SQUARE_SIZE
         return (snap_left, snap_top)
 
 

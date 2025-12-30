@@ -1,4 +1,5 @@
 import pygame
+import time
 
 from constants import *
 from board import Board
@@ -18,14 +19,18 @@ class Game:
 
         clock = pygame.time.Clock()
 
-        board = Board()
+        self.board = Board()
 
-        players = [
+        self.players = [
             Player(PlayerPosition.TOP_LEFT, 'blue'),
             Player(PlayerPosition.TOP_RIGHT, 'red'),
             Player(PlayerPosition.BOT_LEFT, 'green'),
             Player(PlayerPosition.BOT_RIGHT, 'yellow')
         ]
+
+        self.cur_player = self.players[self.cur_player_index]
+
+        self.board.update_valid_squares(self.cur_player.color)
 
         running = True
         while running:
@@ -43,7 +48,7 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     keydown = True
 
-            action = players[self.cur_player_index].handle_inputs(
+            action = self.cur_player.handle_inputs(
                 mousebuttondown,
                 pygame.mouse.get_pressed(),
                 keydown,
@@ -51,19 +56,20 @@ class Game:
             )
 
             if action == PieceAction.PLACE:
-                self.next_turn()
+                self.on_place()
 
-            board.update()
+            self.board.update()
 
-            for player in players:
+            for player in self.players:
                 player.update()
+
 
             gray_darkness = 100
             screen.fill((gray_darkness, gray_darkness, gray_darkness))
 
-            board.draw(screen)
+            self.board.draw(screen)
 
-            for player in players:
+            for player in self.players:
                 player.draw(screen)
 
             pygame.display.flip()
@@ -71,6 +77,46 @@ class Game:
 
         pygame.quit()
 
+    def on_place(self):
+        self.next_turn()
+        
+        start = time.process_time()
+        if self.cur_player.can_place:
+            self.cur_player.can_place = self.board.can_player_place(self.cur_player)
+
+        print(f'Can place: {self.cur_player.can_place} - {time.process_time() - start}')
+
+        turns_skipped = 0
+        while not self.cur_player.can_place:
+            self.next_turn()
+            turns_skipped += 1
+
+            skipped_all_players = turns_skipped >= len(self.players)
+            if skipped_all_players:
+                self.game_over()
+
+
     def next_turn(self):
         self.cur_player_index += 1
         self.cur_player_index = self.cur_player_index % 4
+        self.cur_player = self.players[self.cur_player_index]
+
+        self.board.update_valid_squares(self.cur_player.color)
+
+    def game_over(self):
+        print('Game Over')
+        winners = []
+        max_score = 0
+        for player in self.players:
+            if player.score == max_score:
+                winners.append(player.color)
+            if player.score > max_score:
+                max_score = player.score
+                winners = [player.color]
+
+
+        if len(winners) == 1:
+            print(f'The winner is {winners[0]}!')
+
+        elif len(winners) > 1:
+            print(f'The winners are {', '.join(winners)}!')
