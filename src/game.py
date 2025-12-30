@@ -3,17 +3,19 @@ import time
 
 from constants import *
 from board import Board
-from piece import Piece, PieceAction
+from piece import PieceAction
 from player import Player, PlayerPosition
 
 class Game:
 
     def __init__(self):
+        pygame.init()
+
         self.cur_player_index = 0
 
-    def play(self):
+        self.font = pygame.font.Font(None, 48)
 
-        pygame.init()
+    def play(self):
 
         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
@@ -24,8 +26,8 @@ class Game:
         self.players = [
             Player(PlayerPosition.TOP_LEFT, 'blue'),
             Player(PlayerPosition.TOP_RIGHT, 'red'),
-            Player(PlayerPosition.BOT_LEFT, 'green'),
-            Player(PlayerPosition.BOT_RIGHT, 'yellow')
+            Player(PlayerPosition.BOT_RIGHT, 'yellow'),
+            Player(PlayerPosition.BOT_LEFT, 'green')
         ]
 
         self.cur_player = self.players[self.cur_player_index]
@@ -72,6 +74,13 @@ class Game:
             for player in self.players:
                 player.draw(screen)
 
+            text = self.font.render(f'{self.cur_player.color}\'s turn', True, self.cur_player.color)
+            text_rect = text.get_rect()
+            padding = 20
+            text_rect.center = (SCREEN_CENTER[0], (text_rect.height/2) + padding)
+
+            screen.blit(text, text_rect)
+
             pygame.display.flip()
             dt = clock.tick(60)
 
@@ -79,21 +88,17 @@ class Game:
 
     def on_place(self):
         self.next_turn()
-        
-        start = time.process_time()
-        if self.cur_player.can_place:
-            self.cur_player.can_place = self.board.can_player_place(self.cur_player)
-
-        print(f'Can place: {self.cur_player.can_place} - {time.process_time() - start}')
 
         turns_skipped = 0
         while not self.cur_player.can_place:
-            self.next_turn()
-            turns_skipped += 1
 
+            self.next_turn()
+
+            turns_skipped += 1
             skipped_all_players = turns_skipped >= len(self.players)
             if skipped_all_players:
                 self.game_over()
+                break
 
 
     def next_turn(self):
@@ -102,6 +107,10 @@ class Game:
         self.cur_player = self.players[self.cur_player_index]
 
         self.board.update_valid_squares(self.cur_player.color)
+
+        start = time.process_time()
+        if self.cur_player.can_place:
+            self.cur_player.can_place = self.board.can_player_place(self.cur_player)
 
     def game_over(self):
         print('Game Over')

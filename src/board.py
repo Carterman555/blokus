@@ -63,8 +63,6 @@ class Board:
     # try every orientation of every piece for the player
     def can_player_place(self, player: Player):
 
-        count = 0
-
         required_positions = []
         for y, row in enumerate(self.valid_squares):
             for x, square_state in enumerate(row):
@@ -84,8 +82,6 @@ class Board:
                                 if num == 0:
                                     continue
 
-                                count += 1
-
                                 grid_left = pos[0] - x
                                 grid_top = pos[1] - y
 
@@ -94,13 +90,11 @@ class Board:
 
                                 left, top = self.grid_to_screen_pos(grid_left, grid_top)
                                 if self.can_place_piece(shape, left, top):
-                                    print(count)
                                     return True
                                 
                         shape = rotate_shape(shape)
                     shape = reflect_shape(shape)
 
-        print(count)
         return False
 
 
@@ -160,9 +154,9 @@ class Board:
         
         starting_corners = {
             BoardSquareState.BLUE: (0, 0),
-            BoardSquareState.RED: (19, 0),
-            BoardSquareState.GREEN: (0, 19),
-            BoardSquareState.YELLOW: (19, 19)
+            BoardSquareState.RED: (self.size_in_squares-1, 0),
+            BoardSquareState.GREEN: (0, self.size_in_squares-1),
+            BoardSquareState.YELLOW: (self.size_in_squares-1, self.size_in_squares-1)
         }
 
         piece_state = self.color_to_state[color]

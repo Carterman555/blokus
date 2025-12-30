@@ -148,6 +148,7 @@ class Player:
             self.pieces.append(Piece(shape, (x, y), self.color))
 
         self.score = 0
+
         self.font = pygame.font.Font(None, 48)
 
         self.can_place = True
@@ -191,8 +192,8 @@ class Player:
             PlayerPosition.BOT_RIGHT: (968, 430)
         }
 
-        self.text = self.font.render(str(self.score), True, self.color)
-        screen.blit(self.text, text_positions[self.player_pos])
+        text = self.font.render(str(self.score), True, self.color)
+        screen.blit(text, text_positions[self.player_pos])
 
     def handle_inputs(self, mousebuttondown, mouse_inputs, keydown, keys):
 
@@ -209,6 +210,3 @@ class Player:
             self.score += placed_piece_size
 
         return action
-
-        
-
