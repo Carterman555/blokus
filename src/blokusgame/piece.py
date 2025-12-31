@@ -1,9 +1,9 @@
 import pygame
 from enum import Enum
 
-from constants import SMALL_SQUARE_SIZE, SQUARE_SIZE
-import board
-from helpers import rotate_shape, reflect_shape
+from .constants import SMALL_SQUARE_SIZE, SQUARE_SIZE
+from . import board
+from .helpers import rotate_shape, reflect_shape
 
 class PieceState(Enum):
     OFF_BOARD = 0

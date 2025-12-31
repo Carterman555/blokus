@@ -1,10 +1,10 @@
 import pygame
-from constants import *
 from enum import Enum
 
-from player import Player
-from piece import PieceState
-from helpers import rotate_shape, reflect_shape
+from .constants import *
+from .player import Player
+from .piece import PieceState
+from .helpers import rotate_shape, reflect_shape
 
 class BoardSquareState(Enum):
     EMPTY = 0
@@ -226,6 +226,25 @@ class Board:
     def grid_pos_on_board(self, grid_x, grid_y):
         return grid_x < self.size_in_squares and grid_x >= 0 \
             and grid_y < self.size_in_squares and grid_y >= 0        
+
+    def get_sparse_board(self, color):
+
+        this = []
+        other = []
+
+        state = self.color_to_state[color]
+
+        for row in self.squares:
+            for cur_state in row:
+                if cur_state == state:
+                    this.append(1)
+                    other.append(0)
+                else:
+                    this.append(0)
+                    other.append(1)
+
+        return this + other
+
 
     def print_state(self):
 
