@@ -1,8 +1,10 @@
 import pygame
 from enum import Enum
+import math
 
 from .constants import *
-from .piece import Piece, PieceAction
+from .piece import Piece, PieceAction, PieceState
+from .helpers import rotate_shape, reflect_shape
 
 class PlayerPosition(Enum):
     TOP_LEFT = 0
@@ -11,7 +13,7 @@ class PlayerPosition(Enum):
     BOT_RIGHT = 3
 
 class Player:
-    def __init__(self, player_pos: PlayerPosition, color):
+    def __init__(self, player_pos:PlayerPosition, color, net=None):
 
         self.player_pos = player_pos
         self.color = color
@@ -153,6 +155,8 @@ class Player:
 
         self.can_place = True
 
+        self.net = net
+
     def get_pieces_offset(self, grid_positions, padding, x_spacing, y_spacing):
 
         max_grid_x = max([x for x, y in grid_positions])
@@ -210,3 +214,60 @@ class Player:
             self.score += placed_piece_size
 
         return action
+    
+    def handle_ai_input(self, board):
+
+        if not board.can_player_place(self):
+            raise Exception(f'{self.color} player cannot place.')
+        
+        board_input = board.get_sparse_board(self.color)
+        output = self.net.activate(board_input)
+
+        grid_x_output = output[0:20]
+        grid_y_output = output[20:40]
+
+        piece_output = output[40:61]
+        rotation_output = output[61:65]
+        reflection_output = output[65:67]
+
+        def sort_indices(l):
+            return sorted(
+                range(len(l)),
+                key=lambda i: l[i],
+                reverse=True
+            )
+
+        grid_x_sorted = sort_indices(grid_x_output)
+        grid_y_sorted = sort_indices(grid_y_output)
+        piece_indices = sort_indices(piece_output)
+        rotation_amounts = sort_indices(rotation_output)
+        reflect_amounts = sort_indices(reflection_output)
+        
+        piece: Piece = None
+        for idx in piece_indices:
+            if self.pieces[idx].state != PieceState.OFF_BOARD:
+                continue
+
+            piece = self.pieces[idx]
+
+            for grid_left in grid_x_sorted:
+                for grid_top in grid_y_sorted:
+                    for rotation_amount in rotation_amounts:
+                        for reflect_amount in reflect_amounts:
+                            
+                            shape = piece.shape
+                            for _ in range(rotation_amount):
+                                shape = rotate_shape(shape)
+
+                            if reflect_amount == 1: # reflect_amount is either 0 or 1
+                                shape = reflect_shape(shape)
+
+                            placed = piece.try_place(shape, grid_left, grid_top)
+
+                            if placed:
+                                self.score += piece.get_square_count()
+                                return True
+
+        return False
+    
+            
