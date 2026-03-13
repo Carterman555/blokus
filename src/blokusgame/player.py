@@ -223,12 +223,12 @@ class Player:
         board_input = board.get_sparse_board(self.color)
         output = self.net.activate(board_input)
 
-        grid_x_output = output[0:20]
-        grid_y_output = output[20:40]
+        piece_output = output[0:21]
+        rotation_output = output[21:25]
+        reflection_output = output[25:27]
 
-        piece_output = output[40:61]
-        rotation_output = output[61:65]
-        reflection_output = output[65:67]
+        grid_x_output = output[27 : 27+board.size_in_squares]
+        grid_y_output = output[27+board.size_in_squares : 27 + (board.size_in_squares*2)]
 
         def sort_indices(l):
             return sorted(

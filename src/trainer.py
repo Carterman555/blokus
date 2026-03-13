@@ -1,3 +1,4 @@
+import os
 import sys
 import signal
 import multiprocessing
@@ -46,7 +47,17 @@ class Trainer:
                 
 
 
-    def train_agent(self, config, checkpoint=0, use_multiprocessing=False):
+    def train_agent(self, checkpoint=0, use_multiprocessing=False):
+
+        src_path = os.path.dirname(__file__)
+        config_path = os.path.join(src_path, 'config')
+        config = neat.Config(
+            genome_type=neat.DefaultGenome,
+            reproduction_type=neat.DefaultReproduction,
+            species_set_type=neat.DefaultSpeciesSet,
+            stagnation_type=neat.DefaultStagnation,
+            filename=config_path
+        )
 
         if config.pop_size % 3 != 0:
             raise Exception('population must be a multiple of 3.')
