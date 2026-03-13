@@ -106,10 +106,7 @@ class Game:
 
     def train_ai(self, blue_genome, red_genome, green_genome, yellow_genome, config):
 
-        start_time = time.perf_counter()
-        handle_ai_input_time = 0
-
-        self.init_game(create_screen=False)
+        self.init_game(create_screen=True)
 
         blue_net = neat.nn.FeedForwardNetwork.create(blue_genome, config)
         red_net = neat.nn.FeedForwardNetwork.create(red_genome, config)
@@ -134,11 +131,7 @@ class Game:
                     pygame.quit()
                     sys.exit(0)
 
-
-            ai_input_start = time.perf_counter()
             self.cur_player.handle_ai_input(self.board)
-            handle_ai_input_time += (time.perf_counter() - ai_input_start)
-
             self.on_place()
 
             if self.game_over:
@@ -151,11 +144,9 @@ class Game:
             for player in self.players:
                 player.update()
 
-            # self.draw()
+            self.draw()
             
             dt = self.clock.tick(-1)
-
-        print(f"Handle ai input: {handle_ai_input_time}/{time.perf_counter() - start_time} seconds")
 
 
     def on_place(self):
