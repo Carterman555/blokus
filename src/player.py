@@ -1,8 +1,8 @@
 import pygame
 from enum import Enum
 
-from .constants import *
-from .piece import Piece, PieceAction
+from constants import *
+from piece import Piece, PieceAction
 
 class PlayerPosition(Enum):
     TOP_LEFT = 0

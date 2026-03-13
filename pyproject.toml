@@ -1,12 +1,9 @@
 [project]
-name = "blokus_ai"
+name = "blokus"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "graphviz>=0.21",
-    "matplotlib>=3.10.8",
-    "neat-python>=1.1.0",
     "pygame>=2.6.1",
 ]
