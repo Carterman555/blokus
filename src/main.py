@@ -4,7 +4,6 @@ import neat
 import argparse
 
 from blokusgame.game import Game
-from trainer import Trainer
 
 if __name__ == '__main__':
 
@@ -37,8 +36,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.command == 'train':
-        trainer = Trainer()
-        trainer.train_agent(config)
+        pass
 
     elif args.command == 'aiplay':
         pass

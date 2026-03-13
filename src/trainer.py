@@ -25,7 +25,7 @@ class Trainer:
 
         signal.signal(signal.SIGINT, self.on_quit)
 
-    def eval_genomes(self, genomes, config):
+    def eval_gemones(self, genomes, config):
 
         genome_counter = 0
         for genome_id, genome in genomes:
@@ -33,22 +33,24 @@ class Trainer:
             genome_counter += 1
             print('', end=f'\rGenome {genome_counter}/{config.pop_size}')
 
+
             genomes_to_play: list = genomes
             random.shuffle(genomes_to_play)
             while genomes_to_play:
                 blue = genome
-                red = genomes_to_play.pop()[1]
-                green = genomes_to_play.pop()[1]
-                yellow = genomes_to_play.pop()[1]
+                red = genomes_to_play.pop()
+                green = genomes_to_play.pop()
+                yellow = genomes_to_play.pop()
 
                 game = Game()
-                game.train_ai(blue, red, green, yellow, config)
+                game.train_ai
                 
+
 
 
     def train_agent(self, config, checkpoint=0, use_multiprocessing=False):
 
-        if config.pop_size % 3 != 0:
+        if config.population % 3 != 0:
             raise Exception('population must be a multiple of 3.')
 
         checkpoints_path = 'data/checkpoints'

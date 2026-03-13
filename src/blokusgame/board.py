@@ -28,13 +28,6 @@ class Board:
         self.size_in_squares = 20
         self.size = self.size_in_squares*SQUARE_SIZE
 
-        self.top = SCREEN_CENTER[1] - self.size/2
-        self.bot = SCREEN_CENTER[1] + self.size/2
-        self.left = SCREEN_CENTER[0] - self.size/2
-        self.right = SCREEN_CENTER[0] + self.size/2
-
-        self.rect = pygame.Rect(self.left, self.top, self.size, self.size)
-
         self.squares = [[BoardSquareState.EMPTY] * self.size_in_squares for x in range(self.size_in_squares)]
 
         self.color_to_state = {
@@ -44,6 +37,14 @@ class Board:
             'yellow': BoardSquareState.YELLOW
         }
 
+
+    def update(self):
+        self.top = SCREEN_CENTER[1] - self.size/2
+        self.bot = SCREEN_CENTER[1] + self.size/2
+        self.left = SCREEN_CENTER[0] - self.size/2
+        self.right = SCREEN_CENTER[0] + self.size/2
+
+        self.rect = pygame.Rect(self.left, self.top, self.size, self.size)
 
     def draw(self, screen):
         pygame.draw.rect(screen,'darkgray', self.rect)
@@ -73,7 +74,7 @@ class Board:
                 continue
 
             for pos in required_positions:
-                shape = piece.shape
+                shape = piece.shape.copy()
                 for _ in range(2):
                     for _ in range(4):
                         for y, row in enumerate(shape):
@@ -84,7 +85,11 @@ class Board:
                                 grid_left = pos[0] - x
                                 grid_top = pos[1] - y
 
-                                if self.can_place_piece(shape, grid_left, grid_top):
+                                if not self.grid_pos_on_board(grid_left, grid_top):
+                                    continue
+
+                                left, top = self.grid_to_screen_pos(grid_left, grid_top)
+                                if self.can_place_piece(shape, left, top):
                                     return True
                                 
                         shape = rotate_shape(shape)
@@ -93,26 +98,30 @@ class Board:
         return False
 
 
-    def place_piece(self, piece, grid_left, grid_top):
+    def place_piece(self, piece, snap_left, snap_top):
 
+        left_grid_x, top_grid_y = self.screen_to_grid_pos(snap_left, snap_top)
+        
         for y, row in enumerate(piece.shape):
             for x, num in enumerate(row):
                 if num == 0:
                     continue
 
-                grid_x = grid_left + x
-                grid_y = grid_top + y
+                grid_x = left_grid_x + x
+                grid_y = top_grid_y + y
 
                 piece_state = self.color_to_state[piece.color]
                 self.squares[grid_y][grid_x] = piece_state
 
         return True
     
-    def can_place_piece(self, shape, grid_left, grid_top):
+    def can_place_piece(self, shape, snap_left, snap_top):
 
-        if not self.piece_on_board(shape, grid_left, grid_top):
+        if not self.piece_on_board(shape, snap_left, snap_top):
             return False
         
+        left_grid_x, top_grid_y = self.screen_to_grid_pos(snap_left, snap_top)
+
         # need seperate loops for checking valid pos and setting states because otherwise,
         # it would partially set states before returning false
         in_required_pos = False
@@ -121,8 +130,8 @@ class Board:
                 if num == 0:
                     continue
                 
-                grid_x = grid_left + x
-                grid_y = grid_top + y
+                grid_x = left_grid_x + x
+                grid_y = top_grid_y + y
 
                 if self.valid_squares[grid_y][grid_x] == ValidSquareState.INVALID:
                     return False
@@ -177,19 +186,19 @@ class Board:
                     try_set_state(x-1, y+1, ValidSquareState.REQUIRED)
                     try_set_state(x+1, y+1, ValidSquareState.REQUIRED)
 
-    def piece_on_board(self, shape, grid_left, grid_top):
+    def piece_on_board(self, shape, snap_left, snap_top):
 
         # check position is on board
         width = len(shape[0])
         height = len(shape)
 
-        grid_right = grid_left + width
-        grid_bot = grid_top + height
+        snap_right = snap_left + (width * SQUARE_SIZE)
+        snap_bot = snap_top + (height * SQUARE_SIZE)
 
-        if grid_left < 0 or \
-            grid_right > Board.instance.size_in_squares \
-            or grid_top < 0 \
-            or grid_bot > Board.instance.size_in_squares:
+        if snap_left < Board.instance.left or \
+            snap_right > Board.instance.right \
+            or snap_top < Board.instance.top \
+            or snap_bot > Board.instance.bot:
             return False
         
         return True

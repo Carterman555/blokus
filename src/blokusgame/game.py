@@ -24,15 +24,25 @@ class Game:
 
         self.board = Board()
 
-        self.game_over = False
+        self.players = [
+            Player(PlayerPosition.TOP_LEFT, 'blue'),
+            Player(PlayerPosition.TOP_RIGHT, 'red'),
+            Player(PlayerPosition.BOT_RIGHT, 'yellow'),
+            Player(PlayerPosition.BOT_LEFT, 'green')
+        ]
 
-        
+        self.cur_player = self.players[self.cur_player_index]
+
+        self.board.update_valid_squares(self.cur_player.color)
 
     def handle_user_inputs(self):
         mousebuttondown = False
         keydown = False
 
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit(0)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mousebuttondown = True
@@ -49,6 +59,13 @@ class Game:
 
         if action == PieceAction.PLACE:
             self.on_place()
+
+    def handle_ai_input(self, net):
+
+        board_input = self.board.get_sparse_board()
+        output = net.activate(board_input)
+
+
 
         
 
@@ -76,26 +93,11 @@ class Game:
 
         self.init_game()
 
-        self.players = [
-            Player(PlayerPosition.TOP_LEFT, 'blue'),
-            Player(PlayerPosition.TOP_RIGHT, 'red'),
-            Player(PlayerPosition.BOT_RIGHT, 'yellow'),
-            Player(PlayerPosition.BOT_LEFT, 'green')
-        ]
-
-        self.cur_player = self.players[self.cur_player_index]
-
-        self.board.update_valid_squares(self.cur_player.color)
-
         while True:
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit(0)
+            self.handle_user_inputs()
 
-            if not self.game_over:
-                self.handle_user_inputs()
+            self.board.update()
 
             for player in self.players:
                 player.update()
@@ -104,25 +106,11 @@ class Game:
             
             dt = self.clock.tick(60)
 
-    def train_ai(self, blue_genome, red_genome, green_genome, yellow_genome, config):
+    def train_ai(self, genome, config):
 
-        self.init_game(create_screen=True)
+        self.init_game(create_screen=False)
 
-        blue_net = neat.nn.FeedForwardNetwork.create(blue_genome, config)
-        red_net = neat.nn.FeedForwardNetwork.create(red_genome, config)
-        yellow_net = neat.nn.FeedForwardNetwork.create(green_genome, config)
-        green_net = neat.nn.FeedForwardNetwork.create(yellow_genome, config)
-
-        self.players = [
-            Player(PlayerPosition.TOP_LEFT, 'blue', blue_net),
-            Player(PlayerPosition.TOP_RIGHT, 'red', red_net),
-            Player(PlayerPosition.BOT_RIGHT, 'yellow', yellow_net),
-            Player(PlayerPosition.BOT_LEFT, 'green', green_net)
-        ]
-
-        self.cur_player = self.players[self.cur_player_index]
-
-        self.board.update_valid_squares(self.cur_player.color)
+        net = neat.nn.FeedForwardNetwork(genome, config)
 
         while True:
 
@@ -131,22 +119,16 @@ class Game:
                     pygame.quit()
                     sys.exit(0)
 
-            self.cur_player.handle_ai_input(self.board)
-            self.on_place()
+            self.handle_ai_input()
 
-            if self.game_over:
-                blue_genome.fitness = self.players[0].score
-                red_genome.fitness = self.players[1].score
-                yellow_genome.fitness = self.players[2].score
-                green_genome.fitness = self.players[3].score
-                break
+            self.board.update()
 
             for player in self.players:
                 player.update()
 
-            self.draw()
+            # self.draw()
             
-            dt = self.clock.tick(-1)
+            dt = self.clock.tick(60)
 
 
     def on_place(self):
@@ -160,7 +142,7 @@ class Game:
             turns_skipped += 1
             skipped_all_players = turns_skipped >= len(self.players)
             if skipped_all_players:
-                self.on_game_over()
+                self.game_over()
                 break
 
 
@@ -171,12 +153,11 @@ class Game:
 
         self.board.update_valid_squares(self.cur_player.color)
 
+        start = time.process_time()
         if self.cur_player.can_place:
             self.cur_player.can_place = self.board.can_player_place(self.cur_player)
 
-    def on_game_over(self):
-        self.game_over = True
-
+    def game_over(self):
         print('Game Over')
         winners = []
         max_score = 0

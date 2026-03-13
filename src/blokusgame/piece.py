@@ -77,8 +77,7 @@ class Piece:
         elif self.state == PieceState.DRAGGING:
 
             if left_click:
-                grid_left, grid_right = board.Board.instance.screen_to_grid_pos(*self.snap_pos())
-                placed = self.try_place(self.shape, grid_left, grid_right)
+                placed = self.try_place()
                 if placed:
                     action = PieceAction.PLACE
 
@@ -114,19 +113,16 @@ class Piece:
         self.top = self.off_board_top
         self.left = self.off_board_left
 
-    def try_place(self, shape, grid_left, grid_right):
-        
-        can_place = board.Board.instance.can_place_piece(shape, grid_left, grid_right)
+    def try_place(self):
+        snap_left, snap_right = self.snap_pos()
+        can_place = board.Board.instance.can_place_piece(self.shape, snap_left, snap_right)
         if can_place:
+            board.Board.instance.place_piece(self, snap_left, snap_right)
+
             self.state = PieceState.ON_BOARD
 
-            self.shape = shape
-
-            screen_left, screen_right = board.Board.instance.grid_to_screen_pos(grid_left, grid_right)
-            self.left = screen_left
-            self.top = screen_right
-
-            board.Board.instance.place_piece(self, grid_left, grid_right)
+            self.left = snap_left
+            self.top = snap_right
 
         return can_place
     
